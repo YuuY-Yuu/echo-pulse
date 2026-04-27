@@ -3,79 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Echo Pulse - Mobile Ready</title>
+    <title>Echo Pulse - Ultimate Mobile Edition</title>
     <style>
-        /* 原有樣式保持不變 [cite: 1-51] */
+        /* ==========================================
+         * 1. 核心樣式 [cite: 1-51]
+         * ========================================== */
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: 'Courier New', monospace; touch-action: none; }
         canvas { display: block; }
         #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
         
-        /* --- 新增：手機虛擬按鍵樣式 --- */
+        /* HUD 樣式 [cite: 7-15] */
+        #hud { padding: 20px; display: none; flex-direction: column; gap: 10px; position: relative; }
+        .energy-container { width: 180px; height: 4px; background: rgba(255,255,255,0.1); }
+        #energy-bar { height: 100%; width: 100%; background: #00dcff; box-shadow: 0 0 10px #00dcff; transition: width 0.1s linear; }
+
+        /* 手機按鈕樣式 */
         #mobile-controls {
-            position: absolute;
-            bottom: 30px;
-            left: 0;
-            width: 100%;
-            height: 180px;
-            display: flex;
-            justify-content: space-between;
-            padding: 0 30px;
-            box-sizing: border-box;
-            pointer-events: none; /* 平時不擋住點擊 */
-            z-index: 20;
+            position: absolute; bottom: 30px; left: 0; width: 100%; display: flex; justify-content: space-between; padding: 0 30px; box-sizing: border-box; pointer-events: none; z-index: 20;
         }
-        .v-pad, .v-actions {
-            display: flex;
-            pointer-events: auto; /* 按鈕區域要可以點擊 [cite: 26] */
-        }
-        .v-pad {
-            display: grid;
-            grid-template-areas: ". up ." "left . right" ". down .";
-            gap: 10px;
-        }
-        .v-btn {
-            width: 60px;
-            height: 60px;
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(0, 220, 255, 0.4);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #00dcff;
-            font-weight: bold;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .v-btn:active { background: rgba(0, 220, 255, 0.3); scale: 0.95; }
-        .v-up { grid-area: up; } .v-down { grid-area: down; }
-        .v-left { grid-area: left; } .v-right { grid-area: right; }
-        
+        .v-pad, .v-actions { display: flex; pointer-events: auto; }
+        .v-pad { display: grid; grid-template-areas: ". up ." "left . right" ". down ."; gap: 10px; }
+        .v-btn { width: 60px; height: 60px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(0, 220, 255, 0.4); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #00dcff; font-weight: bold; user-select: none; -webkit-tap-highlight-color: transparent; }
+        .v-btn:active { background: rgba(0, 220, 255, 0.3); transform: scale(0.9); }
+        .v-up { grid-area: up; } .v-down { grid-area: down; } .v-left { grid-area: left; } .v-right { grid-area: right; }
         .v-actions { flex-direction: column; gap: 15px; justify-content: center; }
-        .btn-pulse { width: 80px; height: 80px; background: rgba(0, 220, 255, 0.15); border: 2px solid #00dcff; }
+        .btn-pulse { width: 80px; height: 80px; border: 2px solid #00dcff; background: rgba(0,220,255,0.1); }
         .btn-sprint { width: 70px; height: 70px; border-color: #ff3333; color: #ff3333; font-size: 12px; }
 
-        /* 電腦版隱藏虛擬按鍵（可選，通常手機偵測更準） */
-        @media (min-width: 1024px) { #mobile-controls { display: none; } }
-
-        /* 其餘 UI [cite: 5-51] */
-        #hud { padding: 20px; display: none; }
-        .energy-container { width: 180px; height: 4px; background: rgba(255,255,255,0.1); }
-        #energy-bar { height: 100%; background: #00dcff; transition: width 0.1s; }
-        .fullscreen-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; pointer-events: none; z-index: 30; transition: opacity 0.5s; }
+        /* 全螢幕遮罩 [cite: 23-51] */
+        .fullscreen-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; pointer-events: none; z-index: 30; transition: opacity 0.5s; }
         .fullscreen-screen.visible { opacity: 1; pointer-events: auto; }
-        .main-title { color: #fff; font-size: 48px; letter-spacing: 10px; }
-        .action-btn { padding: 15px 40px; background: transparent; border: 1px solid #fff; color: #fff; cursor: pointer; }
+        .fullscreen-screen.white-theme { background-color: #fff; }
+        .fullscreen-screen.white-theme * { color: #000 !important; border-color: #000 !important; }
+        .main-title { font-size: 48px; letter-spacing: 10px; color: #fff; margin-bottom: 20px; text-align: center; }
+        .sub-text { color: rgba(255,255,255,0.6); text-align: center; margin-bottom: 40px; font-family: 'Microsoft JhengHei'; }
+        .action-btn { padding: 12px 40px; background: transparent; border: 1px solid #fff; color: #fff; font-size: 18px; cursor: pointer; letter-spacing: 3px; }
+
+        #level-display-container { position: absolute; top: 30px; width: 100%; text-align: center; display: none; }
+        #level-display { color: #fff; font-size: 24px; letter-spacing: 5px; font-weight: bold; }
+        #level-subtitle { color: rgba(255,255,255,0.5); font-size: 14px; margin-top: 5px; opacity: 0; transition: opacity 1.5s; font-family: 'Microsoft JhengHei'; }
+        .fade-in { opacity: 1 !important; }
     </style>
 </head>
 <body>
 
     <div id="ui-layer">
         <div id="hud">
-            <div id="energy-bar"></div>
-            <div style="color: #00dcff; font-size: 12px; margin-top: 5px;">ENERGY</div>
+            <h1 style="color: rgba(255,255,255,0.5); font-size: 14px; margin: 0;">ECHO PULSE</h1>
+            <div class="energy-container"><div id="energy-bar"></div></div>
         </div>
         
+        <div id="level-display-container">
+            <div id="level-display"></div>
+            <div id="level-subtitle"></div>
+        </div>
+
         <div id="mobile-controls">
             <div class="v-pad">
                 <div class="v-btn v-up" data-key="w">▲</div>
@@ -92,57 +74,288 @@
 
     <div id="start-screen" class="fullscreen-screen visible">
         <h1 class="main-title">ECHO PULSE</h1>
-        <button class="action-btn" onclick="showStory()">START</button>
+        <p class="sub-text">在黑暗中生存<br>逃離獵手的追捕</p>
+        <button class="action-btn" onclick="showStory()">INITIALIZE</button>
     </div>
 
     <div id="story-screen" class="fullscreen-screen">
-        <div style="color:#fff; padding: 30px; text-align:center; font-family:'Microsoft JhengHei';">
-            實驗代號：Echo Pulse<br>利用聲波逃離深淵。
-        </div>
-        <button class="action-btn" onclick="startGame()">ENTER</button>
+        <h2 style="color:#00dcff; letter-spacing:5px;">深淵感知實驗室</h2>
+        <p class="sub-text" style="max-width: 80%; line-height: 1.8;">
+            實驗代號：Echo Pulse。<br>
+            這裡沒有光，唯有聲波能讓你『看見』世界。<br><br>
+            [注意] 獵人會被聲音吸引，也會感應你的氣味。
+        </p>
+        <button class="action-btn" onclick="startGame()">進入深淵</button>
     </div>
 
     <div id="game-over-screen" class="fullscreen-screen">
-        <h2 id="result-title" style="color:#fff;"></h2>
+        <h2 id="result-title" class="main-title"></h2>
+        <p id="result-sub-text" class="sub-text"></p>
         <button class="action-btn" onclick="handleResultAction()">RESTART</button>
     </div>
 
     <canvas id="gameCanvas"></canvas>
 
 <script>
-    // 這裡繼承你原本所有的 JS 邏輯 [cite: 57-273]
-    // 為了節省篇幅，我重點展示如何綁定手機按鈕：
+/**
+ * ==========================================
+ * 遊戲引擎核心 [cite: 57-273]
+ * ==========================================
+ */
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const energyBarElement = document.getElementById('energy-bar');
+const hudElement = document.getElementById('hud');
+const levelContainer = document.getElementById('level-display-container');
+const levelDisplay = document.getElementById('level-display');
+const levelSubtitle = document.getElementById('level-subtitle');
 
-    const keys = { w: false, a: false, s: false, d: false, shift: false };
+const startScreen = document.getElementById('start-screen');
+const storyScreen = document.getElementById('story-screen');
+const gameOverScreen = document.getElementById('game-over-screen');
+const resultTitle = document.getElementById('result-title');
+const resultSubText = document.getElementById('result-sub-text');
 
-    // --- 新增：觸控事件監聽 ---
-    function bindTouchControls() {
-        // 方向鍵
-        document.querySelectorAll('.v-btn[data-key]').forEach(btn => {
-            const key = btn.getAttribute('data-key');
-            btn.addEventListener('touchstart', (e) => { e.preventDefault(); keys[key] = true; });
-            btn.addEventListener('touchend', (e) => { e.preventDefault(); keys[key] = false; });
-        });
+let gameState = 'start';
+let currentLevel = 1;
+const MAX_LEVEL = 5;
+let animationFrameId;
+let screenShakeAmount = 0;
+let shockwaveData = { active: false, x: 0, y: 0, radius: 0, timer: 0 };
+let whiteoutTimer = 0;
+let introTime = 0;
 
-        // 聲波按鈕 [cite: 182-185]
-        const pulseBtn = document.getElementById('touch-pulse');
-        pulseBtn.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            if (gameState === 'playing') fireWave(); 
-        });
+const levelNarrativesCN = {
+    1: "淵面深處，有物窺伺。",
+    2: "沉默，是你唯一的護盾。",
+    3: "牠們正在學習你的律動。",
+    4: "能源即將枯竭，不要停下。",
+    5: "前方即是微光，跑！"
+};
 
-        // 衝刺按鈕 [cite: 195-197]
-        const sprintBtn = document.getElementById('touch-sprint');
-        sprintBtn.addEventListener('touchstart', (e) => { e.preventDefault(); keys.shift = true; });
-        sprintBtn.addEventListener('touchend', (e) => { e.preventDefault(); keys.shift = false; });
+const player = { x: 0, y: 0, radius: 8, speed: 4.2, energy: 100, maxEnergy: 100, energyCost: 15, sprintDrainRate: 25, energyRegenRate: 8 };
+const keys = { w: false, a: false, s: false, d: false, shift: false };
+const walls = [];
+const echoPoints = [];
+const waves = [];
+const stalkers = [];
+const particles = [];
+const footsteps = [];
+const goal = { x: 0, y: 0, radius: 30, isRevealed: false, revealBrightness: 0, pulseAngle: 0 };
+
+// --- 輔助函式 [cite: 76-88] ---
+function getRandomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function getDistance(x1, y1, x2, y2) { return Math.sqrt((x2 - x1)**2 + (y2 - y1)**2); }
+function rectIntersectsCircle(rx, ry, rw, rh, cx, cy, cr) {
+    let testX = cx, testY = cy;
+    if (cx < rx) testX = rx; else if (cx > rx + rw) testX = rx + rw;
+    if (cy < ry) testY = ry; else if (cy > ry + rh) testY = ry + rh;
+    return ((cx - testX)**2 + (cy - testY)**2) <= cr*cr;
+}
+function checkCollision(pX, pY, radius, wall) {
+    return (pX - radius < wall.x + wall.w && pX + radius > wall.x && pY - radius < wall.y + wall.h && pY + radius > wall.y);
+}
+function checkLineOfSight(x1, y1, x2, y2, wallsArray) {
+    for (let w of wallsArray) {
+        if (lineIntersectsRect(x1, y1, x2, y2, w.x, w.y, w.w, w.h)) return false;
     }
+    return true;
+}
+function lineIntersectsRect(x1, y1, x2, y2, rx, ry, rw, rh) {
+    let minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
+    let minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
+    if (maxX < rx || minX > rx + rw || maxY < ry || minY > ry + rh) return false;
+    const lineLine = (x1, y1, x2, y2, x3, y3, x4, y4) => {
+        let den = ((y4-y3)*(x2-x1) - (x4-x3)*(y2-y1));
+        if (den === 0) return false;
+        let uA = ((x4-x3)*(y1-y3) - (y4-y3)*(x1-x3)) / den;
+        let uB = ((x2-x1)*(y1-y3) - (y2-y1)*(x1-x3)) / den;
+        return (uA >= 0 && uA <= 1 && uB >= 0 && uB <= 1);
+    };
+    return lineLine(x1,y1,x2,y2, rx,ry,rx+rw,ry) || lineLine(x1,y1,x2,y2, rx,ry+rh,rx+rw,ry+rh) || lineLine(x1,y1,x2,y2, rx,ry,rx,ry+rh) || lineLine(x1,y1,x2,y2, rx+rw,ry,rx+rw,ry+rh);
+}
 
-    // 在 startGame 或初始化時呼叫
+// --- 實體類別 [cite: 70-75, 89-134] ---
+class Particle {
+    constructor(x, y, color) { this.x = x; this.y = y; this.vx = (Math.random()-0.5)*1.5; this.vy = (Math.random()-0.5)*1.5; this.life = 1.0; this.decay = 0.02; this.color = color; }
+    update() { this.x += this.vx; this.y += this.vy; this.life -= this.decay; }
+    draw(ctx) { if(this.life <= 0) return; ctx.fillStyle = `rgba(${this.color}, ${this.life})`; ctx.fillRect(this.x, this.y, 2, 2); }
+}
+
+class Stalker {
+    constructor(x, y) {
+        this.x = x; this.y = y; this.radius = 8; this.vx = 0; this.vy = 0;
+        this.speedIdle = 1.6; this.speedTailing = player.speed * 0.45; this.speedHunting = 5.0; this.speedFatigue = 0.5;
+        this.state = 'idle'; this.targetX = x; this.targetY = y; this.revealBrightness = 0; this.trail = [];
+        this.flashTimer = Math.random()*4; this.huntTimer = 0; this.fatigueTimer = 0; this.stepTimer = 0; this.startupTimer = 1.5;
+        this.pickIdleTarget();
+    }
+    pickIdleTarget() { this.targetX = getRandomInt(50, canvas.width-50); this.targetY = getRandomInt(50, canvas.height-50); }
+    triggerHunt() { this.huntTimer = 2.5; this.fatigueTimer = 0; this.revealBrightness = 1.0; }
+    update(deltaTime) {
+        if (this.startupTimer > 0) { this.startupTimer -= deltaTime; return; }
+        if (this.huntTimer > 0) { this.huntTimer -= deltaTime; if(this.huntTimer <= 0) this.fatigueTimer = 2.5; }
+        else if (this.fatigueTimer > 0) this.fatigueTimer -= deltaTime;
+        
+        this.flashTimer = (this.flashTimer + deltaTime) % 4;
+        this.stepTimer += deltaTime;
+        if(this.stepTimer >= 2.0) { this.stepTimer = 0; footsteps.push({x:this.x, y:this.y, life:0.5, maxLife:0.5}); }
+        if(this.revealBrightness > 0) this.revealBrightness -= 0.015;
+
+        const dist = getDistance(this.x, this.y, player.x, player.y);
+        let speed = this.speedIdle;
+        if(this.huntTimer > 0) { this.state = 'hunting'; speed = this.speedHunting; if(checkLineOfSight(this.x,this.y,player.x,player.y,walls)){this.targetX=player.x; this.targetY=player.y;} }
+        else if(this.fatigueTimer > 0) { this.state = 'fatigued'; speed = this.speedFatigue; }
+        else if(dist < 150) { this.state = 'tailing'; speed = this.speedTailing; if(checkLineOfSight(this.x,this.y,player.x,player.y,walls)){this.targetX=player.x; this.targetY=player.y;} }
+        else { this.state = 'idle'; speed = this.speedIdle; }
+
+        let dx = this.targetX - this.x, dy = this.targetY - this.y;
+        let d = Math.sqrt(dx*dx + dy*dy);
+        if(d > speed) { this.vx = (dx/d)*speed; this.vy = (dy/d)*speed; }
+        else if(this.state === 'idle') this.pickIdleTarget();
+
+        this.x += this.vx; this.y += this.vy;
+        walls.forEach(w => { if(checkCollision(this.x,this.y,this.radius,w)){ this.pickIdleTarget(); } });
+        this.trail.push({x:this.x, y:this.y}); if(this.trail.length > 15) this.trail.shift();
+    }
+    draw(ctx) {
+        let alpha = Math.max(this.revealBrightness, (this.state === 'hunting' ? 0.6 : 0));
+        if(this.flashTimer > 3.8) alpha = 0.3;
+        if(this.startupTimer > 0) alpha = 1.0;
+        if(alpha <= 0 && this.state !== 'fatigued') return;
+        ctx.fillStyle = this.state === 'fatigued' ? 'rgba(139,0,0,0.5)' : `rgba(255,50,50,${alpha})`;
+        ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2); ctx.fill();
+    }
+}
+
+// --- 遊戲邏輯控制 [cite: 135-181] ---
+function generateMap() {
+    walls.length = 0; echoPoints.length = 0; waves.length = 0; stalkers.length = 0; particles.length = 0;
+    const cw = canvas.width, ch = canvas.height;
+    player.x = 100; player.y = ch - 100;
+    goal.x = getRandomInt(100, cw - 100); goal.y = getRandomInt(100, ch - 100);
+    while(getDistance(player.x, player.y, goal.x, goal.y) < 350) { goal.x = getRandomInt(100, cw-100); goal.y = getRandomInt(100, ch-100); }
+    
+    // 邊界
+    walls.push({x:0, y:0, w:cw, h:10}, {x:0, y:ch-10, w:cw, h:10}, {x:0, y:0, w:10, h:ch}, {x:cw-10, y:0, w:10, h:ch});
+    for(let i=0; i<10 + currentLevel*2; i++) {
+        let w = getRandomInt(40, 150), h = getRandomInt(40, 150), x = getRandomInt(50, cw-150), y = getRandomInt(50, ch-150);
+        if(!rectIntersectsCircle(x,y,w,h,player.x,player.y,100) && !rectIntersectsCircle(x,y,w,h,goal.x,goal.y,100)) walls.push({x,y,w,h});
+    }
+    for(let i=0; i<currentLevel; i++) stalkers.push(new Stalker(getRandomInt(100, cw-100), getRandomInt(100, ch-100)));
+    walls.forEach(w => {
+        for(let x=w.x; x<=w.x+w.w; x+=4) { echoPoints.push({x, y:w.y, b:0}, {x, y:w.y+w.h, b:0}); }
+        for(let y=w.y; y<=w.y+w.h; y+=4) { echoPoints.push({x:w.x, y, b:0}, {x:w.x+w.w, y, b:0}); }
+    });
+}
+
+function fireWave() {
+    if(player.energy >= player.energyCost) {
+        player.energy -= player.energyCost;
+        waves.push({ x: player.x, y: player.y, radius: player.radius, speed: 10, maxRadius: 250, thickness: 15 });
+    }
+}
+
+// --- 手機控制綁定 ---
+function bindTouchControls() {
+    document.querySelectorAll('.v-btn[data-key]').forEach(btn => {
+        btn.addEventListener('touchstart', (e) => { e.preventDefault(); keys[btn.dataset.key] = true; });
+        btn.addEventListener('touchend', (e) => { e.preventDefault(); keys[btn.dataset.key] = false; });
+    });
+    document.getElementById('touch-pulse').addEventListener('touchstart', (e) => { e.preventDefault(); fireWave(); });
+    document.getElementById('touch-sprint').addEventListener('touchstart', (e) => { e.preventDefault(); keys.shift = true; });
+    document.getElementById('touch-sprint').addEventListener('touchend', (e) => { e.preventDefault(); keys.shift = false; });
+}
+
+window.showStory = () => { startScreen.classList.remove('visible'); storyScreen.classList.add('visible'); };
+window.startGame = () => { 
+    storyScreen.classList.remove('visible'); 
+    currentLevel = 1; 
+    generateMap(); 
+    gameState = 'level_intro'; introTime = 0;
+    hudElement.style.display = 'flex'; levelContainer.style.display = 'block';
     bindTouchControls();
+};
+window.handleResultAction = () => { 
+    gameOverScreen.classList.remove('visible'); 
+    if(gameState === 'lost') currentLevel = 1; else currentLevel++;
+    generateMap(); gameState = 'level_intro'; introTime = 0;
+};
 
-    // 核心邏輯（維持你原本的版本，僅需確保 update 函數讀取 keys 物件） [cite: 195-208]
-    // ... (此處省略你原本的 Stalker AI, Wave, Map 生成代碼，請完整保留) ...
+// --- 主循環 [cite: 187-273] ---
+function update(deltaTime) {
+    if(gameState === 'level_intro') {
+        introTime += deltaTime;
+        levelDisplay.textContent = `LEVEL ${currentLevel}`;
+        levelSubtitle.textContent = levelNarrativesCN[currentLevel];
+        if(introTime > 1.5) levelSubtitle.classList.add('fade-in');
+        if(introTime > 4) { gameState = 'playing'; levelSubtitle.classList.remove('fade-in'); }
+        return;
+    }
+    if(gameState !== 'playing') return;
 
+    let speed = (keys.shift && player.energy > 5) ? player.speed * 1.6 : player.speed;
+    if(keys.shift && player.energy > 0) player.energy -= 0.5; else if(player.energy < 100) player.energy += 0.15;
+    energyBarElement.style.width = `${player.energy}%`;
+
+    let vx=0, vy=0;
+    if(keys.w) vy -= speed; if(keys.s) vy += speed; if(keys.a) vx -= speed; if(keys.d) vx += speed;
+    player.x += vx; player.y += vy;
+    walls.forEach(w => { if(checkCollision(player.x, player.y, player.radius, w)){ player.x -= vx; player.y -= vy; } });
+
+    waves.forEach((w, i) => {
+        w.radius += w.speed;
+        echoPoints.forEach(p => {
+            let d = getDistance(w.x, w.y, p.x, p.y);
+            if(Math.abs(d - w.radius) < 10) p.b = 1.0;
+        });
+        stalkers.forEach(s => { if(getDistance(w.x, w.y, s.x, s.y) < w.radius) s.triggerHunt(); });
+        if(w.radius > w.maxRadius) waves.splice(i, 1);
+    });
+
+    echoPoints.forEach(p => { if(p.b > 0) p.b -= 0.01; });
+    stalkers.forEach(s => { 
+        s.update(deltaTime); 
+        if(getDistance(player.x, player.y, s.x, s.y) < 15) { gameState = 'lost'; resultTitle.textContent = "YOU DIED"; gameOverScreen.classList.add('visible'); }
+    });
+    
+    if(getDistance(player.x, player.y, goal.x, goal.y) < 30) {
+        if(currentLevel >= MAX_LEVEL) { gameState = 'win'; resultTitle.textContent = "ESCAPE SUCCESS"; gameOverScreen.classList.add('white-theme', 'visible'); }
+        else { gameState = 'clear'; resultTitle.textContent = `LEVEL ${currentLevel} CLEAR`; gameOverScreen.classList.add('visible'); }
+    }
+}
+
+function draw() {
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    if(gameState === 'level_intro') {
+        ctx.fillStyle = `rgba(255,255,255,${0.4})`; ctx.textAlign='center'; ctx.font="20px Arial"; ctx.fillText(levelNarrativesCN[currentLevel], canvas.width/2, canvas.height/2);
+        return;
+    }
+    
+    echoPoints.forEach(p => { if(p.b > 0) { ctx.fillStyle = `rgba(0, 220, 255, ${p.b})`; ctx.fillRect(p.x, p.y, 2, 2); } });
+    stalkers.forEach(s => s.draw(ctx));
+    
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(player.x, player.y, player.radius, 0, Math.PI*2); ctx.fill();
+    waves.forEach(w => { ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.beginPath(); ctx.arc(w.x, w.y, w.radius, 0, Math.PI*2); ctx.stroke(); });
+}
+
+function loop(time) {
+    static lastTime = time;
+    update((time - lastTime)/1000);
+    draw();
+    lastTime = time;
+    requestAnimationFrame(loop);
+}
+
+// 修正初始化寬度
+function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+window.addEventListener('resize', resize);
+resize();
+requestAnimationFrame(loop);
+
+// 鍵盤支援
+window.addEventListener('keydown', e => { if(keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = true; if(e.code==='Space') fireWave(); });
+window.addEventListener('keyup', e => { if(keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = false; });
 </script>
 </body>
 </html>
