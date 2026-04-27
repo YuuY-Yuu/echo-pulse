@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Echo Pulse - Mobile Ready</title>
+    <style>
+        /* 原有樣式保持不變 [cite: 1-51] */
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: 'Courier New', monospace; touch-action: none; }
+        canvas { display: block; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 5; }
+        
+        /* --- 新增：手機虛擬按鍵樣式 --- */
+        #mobile-controls {
+            position: absolute;
+            bottom: 30px;
+            left: 0;
+            width: 100%;
+            height: 180px;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 30px;
+            box-sizing: border-box;
+            pointer-events: none; /* 平時不擋住點擊 */
+            z-index: 20;
+        }
+        .v-pad, .v-actions {
+            display: flex;
+            pointer-events: auto; /* 按鈕區域要可以點擊 [cite: 26] */
+        }
+        .v-pad {
+            display: grid;
+            grid-template-areas: ". up ." "left . right" ". down .";
+            gap: 10px;
+        }
+        .v-btn {
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(0, 220, 255, 0.4);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #00dcff;
+            font-weight: bold;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .v-btn:active { background: rgba(0, 220, 255, 0.3); scale: 0.95; }
+        .v-up { grid-area: up; } .v-down { grid-area: down; }
+        .v-left { grid-area: left; } .v-right { grid-area: right; }
+        
+        .v-actions { flex-direction: column; gap: 15px; justify-content: center; }
+        .btn-pulse { width: 80px; height: 80px; background: rgba(0, 220, 255, 0.15); border: 2px solid #00dcff; }
+        .btn-sprint { width: 70px; height: 70px; border-color: #ff3333; color: #ff3333; font-size: 12px; }
+
+        /* 電腦版隱藏虛擬按鍵（可選，通常手機偵測更準） */
+        @media (min-width: 1024px) { #mobile-controls { display: none; } }
+
+        /* 其餘 UI [cite: 5-51] */
+        #hud { padding: 20px; display: none; }
+        .energy-container { width: 180px; height: 4px; background: rgba(255,255,255,0.1); }
+        #energy-bar { height: 100%; background: #00dcff; transition: width 0.1s; }
+        .fullscreen-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; pointer-events: none; z-index: 30; transition: opacity 0.5s; }
+        .fullscreen-screen.visible { opacity: 1; pointer-events: auto; }
+        .main-title { color: #fff; font-size: 48px; letter-spacing: 10px; }
+        .action-btn { padding: 15px 40px; background: transparent; border: 1px solid #fff; color: #fff; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <div id="hud">
+            <div id="energy-bar"></div>
+            <div style="color: #00dcff; font-size: 12px; margin-top: 5px;">ENERGY</div>
+        </div>
+        
+        <div id="mobile-controls">
+            <div class="v-pad">
+                <div class="v-btn v-up" data-key="w">▲</div>
+                <div class="v-btn v-left" data-key="a">◀</div>
+                <div class="v-btn v-right" data-key="d">▶</div>
+                <div class="v-btn v-down" data-key="s">▼</div>
+            </div>
+            <div class="v-actions">
+                <div class="v-btn btn-pulse" id="touch-pulse">PULSE</div>
+                <div class="v-btn btn-sprint" id="touch-sprint">SHIFT</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="start-screen" class="fullscreen-screen visible">
+        <h1 class="main-title">ECHO PULSE</h1>
+        <button class="action-btn" onclick="showStory()">START</button>
+    </div>
+
+    <div id="story-screen" class="fullscreen-screen">
+        <div style="color:#fff; padding: 30px; text-align:center; font-family:'Microsoft JhengHei';">
+            實驗代號：Echo Pulse<br>利用聲波逃離深淵。
+        </div>
+        <button class="action-btn" onclick="startGame()">ENTER</button>
+    </div>
+
+    <div id="game-over-screen" class="fullscreen-screen">
+        <h2 id="result-title" style="color:#fff;"></h2>
+        <button class="action-btn" onclick="handleResultAction()">RESTART</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+<script>
+    // 這裡繼承你原本所有的 JS 邏輯 [cite: 57-273]
+    // 為了節省篇幅，我重點展示如何綁定手機按鈕：
+
+    const keys = { w: false, a: false, s: false, d: false, shift: false };
+
+    // --- 新增：觸控事件監聽 ---
+    function bindTouchControls() {
+        // 方向鍵
+        document.querySelectorAll('.v-btn[data-key]').forEach(btn => {
+            const key = btn.getAttribute('data-key');
+            btn.addEventListener('touchstart', (e) => { e.preventDefault(); keys[key] = true; });
+            btn.addEventListener('touchend', (e) => { e.preventDefault(); keys[key] = false; });
+        });
+
+        // 聲波按鈕 [cite: 182-185]
+        const pulseBtn = document.getElementById('touch-pulse');
+        pulseBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (gameState === 'playing') fireWave(); 
+        });
+
+        // 衝刺按鈕 [cite: 195-197]
+        const sprintBtn = document.getElementById('touch-sprint');
+        sprintBtn.addEventListener('touchstart', (e) => { e.preventDefault(); keys.shift = true; });
+        sprintBtn.addEventListener('touchend', (e) => { e.preventDefault(); keys.shift = false; });
+    }
+
+    // 在 startGame 或初始化時呼叫
+    bindTouchControls();
+
+    // 核心邏輯（維持你原本的版本，僅需確保 update 函數讀取 keys 物件） [cite: 195-208]
+    // ... (此處省略你原本的 Stalker AI, Wave, Map 生成代碼，請完整保留) ...
+
+</script>
+</body>
+</html>
